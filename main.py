@@ -9,7 +9,7 @@ fisierDateAll = open("dateAll.txt", 'w')
 # extracting data from the csv file + general definitions
 data = pandas.read_csv('sample-websites.csv')
 forbidden = "403 Forbidden"
-badEmail = ['@sentry-next.wixpress.com', '@sentry-viewer.wixpress.com', '@sentry.wixpress.com', '@example.com', '.png', '.webp', '.jpg', '.jpeg']
+badEmail = ['@sentry-next.wixpress.com', '@sentry-viewer.wixpress.com', '@sentry.wixpress.com', '@example.com', '.png', '.webp', '.jpg', '.jpeg', 'sentry.io']
 
 # write to file function
 def scriereFisier(array, file):
@@ -56,7 +56,7 @@ def procesareNrTel(array):
         array = array.strip()
         array = array.strip("\/ ")
         array = array.replace(" ", "")
-        if len(array) <= 10 or len(array) >= 15:
+        if len(array) <= 10 or len(array) >= 16:
             array = "0"
     else:
         for i in range(len(array)):
@@ -64,7 +64,7 @@ def procesareNrTel(array):
             array[i] = array[i].strip()
             array[i] = array[i].strip("\/ ")
             array[i] = array[i].replace(" ", "")
-            if len(array[i]) <= 10 or len(array[i]) >= 15:
+            if len(array[i]) <= 10 or len(array[i]) >= 16:
                 array[i] = "0"
 
 # function that returns a page that could be the contact page of the website
@@ -120,7 +120,7 @@ def extragereTelefon(pagina):
             return 0
         else:
             # basic phone number regex
-            telefonContact = re.findall(r"[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*", str(soup.get_text()))
+            telefonContact = re.findall(r"[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*", str(supica.get_text()))
             print("Am procesat pagina contact (pentru extragere nr tel): " + pagina)
 
             # returns what if finds
@@ -134,6 +134,7 @@ def extragereTelefon(pagina):
 for i in range(len(data)):
     # generating URL
     URL = "http://www." + data.iloc[i, 0]
+
     try:
         page = requests.get(URL)
         soup = BeautifulSoup(page.content, "html.parser")
@@ -144,8 +145,8 @@ for i in range(len(data)):
 
         # theoretically we are in
         else:
-            print("Procesez website: " + URL + " (" + str(i) + ")")
 
+            print("Procesez website: " + URL + " (" + str(i) + ")")
             # searches for all links within the page
             pagini = soup.find_all('a', attrs={'href': re.compile("^http(s)?://")})
 
