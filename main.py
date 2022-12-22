@@ -1,18 +1,17 @@
-import numpy as np
 import pandas
 import requests
 from bs4 import BeautifulSoup
 import re
-from dateutil.parser import parse
 
 fisierDate = open('date.txt', 'w')
 fisierDateAll = open("dateAll.txt", 'w')
 
-# extragere date + definitii generale
+# extracting data from the csv file + general definitions
 data = pandas.read_csv('sample-websites.csv')
 forbidden = "403 Forbidden"
 badEmail = ['@sentry-next.wixpress.com', '@sentry-viewer.wixpress.com', '@sentry.wixpress.com', '@example.com', '.png', '.webp', '.jpg', '.jpeg']
 
+# write to file function
 def scriereFisier(array, file):
     if isinstance(array, str) or isinstance(array, int):
         if str(array) != str(0):
@@ -22,6 +21,7 @@ def scriereFisier(array, file):
             if str(array[i]) != str(0):
                 print(array[i], file = file)
 
+# write in terminal function
 def afisare(array):
     if isinstance(array, str) or isinstance(array, int):
         if array != str(0):
@@ -31,7 +31,7 @@ def afisare(array):
             if array[i] != str(0):
                 print(array[i])
 
-# procesare email
+# email processing
 def procesareEmail(array):
     if isinstance(array, str) or isinstance(array, int):
         array = str(array).lower()
@@ -49,7 +49,7 @@ def procesareEmail(array):
                 if re.findall(badEmail[j], str(array[i])):
                     array[i] = 0
 
-# procesare nr tel
+# phone number processing
 def procesareNrTel(array):
     if isinstance(array, str) or isinstance(array, int):
         array = str(array)
@@ -67,26 +67,26 @@ def procesareNrTel(array):
             if len(array[i]) <= 10 or len(array[i]) >= 15:
                 array[i] = "0"
 
-# functie extragere pagina ce contine "contact" in ea
+# function that returns a page that could be the contact page of the website
 def parcurgerePagini(pagini):
     for i in range(len(pagini)):
-        # se extrage un obiect ce are ca parametru pagina
+        # extracts an object that has a valid link withn it
         pagini[i] = re.search(r"[(http(s)?):\/\/(www\.)?a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)", str(pagini[i]))
 
-        # ramane doar acel parametru
+        # only the link remains
         pagini[i] = pagini[i].group(0)
 
-        # se cauta cuvantul "contact" in link
+        # it searches for the word "contact" within the link
         if re.findall(r"contact", pagini[i].lower()):
             return pagini[i]
         else:
             pagini[i] = "deleted"
-    # cazul in care nu exista contact in nici o pagina
+    # no "contact" page found
     return 0
 
-# functie extragere email dintr-o pagina de "contact"
+# function that extracts email from a page
 def extragereEmail(pagina):
-    # acelasi principiu ca mai jos
+    # same principle as in the next function
     try:
         pag = requests.get(pagina)
         supa = BeautifulSoup(pag.content, "html.parser")
@@ -99,63 +99,66 @@ def extragereEmail(pagina):
             emailContact = re.findall(r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)", str(supa))
             print("Am procesat pagina contact (pentru extragere email): " + pagina)
 
-            # se returneaza ce se gaseste
+            # returns what it finds
             return emailContact
     except:
-        # sau 0 daca nu se gaseste nimic
+        # or 0 if it finds nothing or cant acces the page
         print("[NO CONNECTION] Nu se poate procesa pagina contact: " + pagina)
         return 0
 
+# function that extracts phone number from a page
 def extragereTelefon(pagina):
-    # acelasi principiu ca mai jos
     try:
+        # gets html page
         pag = requests.get(pagina)
+
+        # processes html page
         supica = BeautifulSoup(pag.content, "html.parser")
 
         if supica.title.string == forbidden:
             print("[FORBIDDEN ACCES] Nu se poate procesa pagina contact " + pagina)
             return 0
         else:
-            # regex telefon basic
+            # basic phone number regex
             telefonContact = re.findall(r"[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*", str(soup.get_text()))
             print("Am procesat pagina contact (pentru extragere nr tel): " + pagina)
 
-            # se returneaza ce se gaseste
+            # returns what if finds
             return telefonContact
     except:
-        # sau 0 daca nu se gaseste nimic
+        # or 0 if it finds nothing or cant acces the page
         print("[NO CONNECTION] Nu se poate procesa pagina contact: " + pagina)
         return 0
 
-# parcurgere fiecare site in parte
+# main function, it processes all sites from the csv file
 for i in range(len(data)):
-    # generare URL
+    # generating URL
     URL = "http://www." + data.iloc[i, 0]
     try:
         page = requests.get(URL)
         soup = BeautifulSoup(page.content, "html.parser")
 
-        # daca avem forbidden acces in titlu
+        # if forbidden in title
         if soup.title.string == forbidden:
             print("[FORBIDDEN ACCES] Nu se poate procesa website: " + URL + " (" + str(i) + ")")
 
-        # teoretic am intrat cu succes pe site
+        # theoretically we are in
         else:
             print("Procesez website: " + URL + " (" + str(i) + ")")
 
-            # cautare toate paginile dinauntru site-ului cu ajutorul <a href=http...>
+            # searches for all links within the page
             pagini = soup.find_all('a', attrs={'href': re.compile("^http(s)?://")})
 
-            # se extrage pagina care contine cuvantul cheie "contact"
+            # searches for the contact page within those links
             pagina = parcurgerePagini(pagini)
 
-            # se incearca obtinerea emailului si a telefonului din pagina actuala
+            # trying to extract email & phone number using regex from the provided page
             # regex email basic
             email = re.findall(r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)", str(soup))
-            # regex nr tel basic
+            # regex phone number basic
             telefon = re.findall(r"[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*", str(soup.get_text()))
 
-            # se incearaca obtinerea emailului si a telefonului din pagina de "contact"
+            # trying to take the email and the phone number from the contact page aswell if found
             if pagina != 0:
                 emailContact = extragereEmail(pagina)
                 telefonContact = extragereTelefon(pagina)
@@ -163,30 +166,31 @@ for i in range(len(data)):
                 emailContact = 0
                 telefonContact = 0
 
-            # se initializeaza lista totala goala
+            # initializing empty list
             totalTelefon = []
-            # se iau toate cazurile posibile pentru a putea concatena datele intr-un singur obiect
-            # cazul value + X
+
+            # concatenates the two data lists found in every combination to ensure it is correctly concatenated
+            # case value + X
             if isinstance(telefon, str) or isinstance(telefon, int):
-                # cazul value + value
+                # case value + value
                 if isinstance(telefonContact, str) or isinstance(telefonContact, int):
                     totalTelefon.append(telefon)
                     totalTelefon.append(telefonContact)
-                # cazul value + list
+                # case value + list
                 else:
                     telefonContact.append(telefon)
                     totalTelefon = telefonContact + totalTelefon
-            # cazul list + x
+            # case list + X
             else:
-                # cazul list + value
+                # case list + value
                 if isinstance(telefonContact, str) or isinstance(telefonContact, int):
                     totalTelefon.append(telefonContact)
                     totalTelefon = totalTelefon + telefon
-                # cazul list + list
+                # case list + list
                 else:
                     totalTelefon = telefon + telefonContact
 
-            # aceleasi principii ca la totalTelefon
+            # same principle as above
             totalEmail = []
             if isinstance(email, str) or isinstance(email, int):
                 if isinstance(emailContact, str) or isinstance(emailContact, int):
@@ -202,37 +206,41 @@ for i in range(len(data)):
                 else:
                     totalEmail = email + emailContact
 
-            # se scriu datele raw in fisierul cu toate datele raw
+            # in the dataAll file it writes all found data (without further processing), helpful for debugging & improving
             print("##########", file=fisierDateAll)
             print("(" + str(i) + ") " + data.iloc[i, 0], file=fisierDateAll)
             print("##########", file=fisierDateAll)
             scriereFisier(totalTelefon, fisierDateAll)
             scriereFisier(totalEmail, fisierDateAll)
 
-            # se proceseaza datele
+            # processing data
             procesareNrTel(totalTelefon)
             procesareEmail(totalEmail)
 
-            # se elimina valorile duplicat
+            # removing duplicates
             totalEmail = list(dict.fromkeys(totalEmail))
             totalTelefon = list(dict.fromkeys(totalTelefon))
 
-            # se scriu datele in fisier
+            # writing supposedly valid data in data file
             print("##########", file=fisierDate)
             print("(" + str(i) + ") " + data.iloc[i, 0], file = fisierDate)
             print("##########", file = fisierDate)
             scriereFisier(totalTelefon, fisierDate)
             scriereFisier(totalEmail, fisierDate)
 
-            # se sterg valorile reziduale
+            # deleting residual values (to not be used in the next iteration)
             del totalEmail
             del totalTelefon
     except:
-        # eroare incarcare site (de cele mai multe ori no connection)
+        # error while loading the site (most likely no connection)
         print("[NO CONNECTION] Nu se poate procesa website: " + URL + " (" + str(i) + ")")
 
+# processing finished
 print("########################")
 print("Procesare finalizata!")
 
+# closing files
 fisierDate.close()
 fisierDateAll.close()
+
+# all done
