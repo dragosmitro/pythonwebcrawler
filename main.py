@@ -4,12 +4,28 @@ from bs4 import BeautifulSoup
 import re
 
 fisierDate = open('date.txt', 'w')
-fisierDateAll = open("dateAll.txt", 'w')
+fisierDateAll = open("dateUnprocessed.txt", 'w')
 
 # extracting data from the csv file + general definitions
 data = pandas.read_csv('sample-websites.csv')
 forbidden = "403 Forbidden"
 badEmail = ['@sentry-next.wixpress.com', '@sentry-viewer.wixpress.com', '@sentry.wixpress.com', '@example.com', '.png', '.webp', '.jpg', '.jpeg', 'sentry.io']
+
+# further email processing to remove duplicates ('example@email.com' & 'example@email.com.' are considered duplicates)
+def removeEmailDuplicates(array):
+    if isinstance(array, str) or isinstance(array, int):
+        array = str(array).strip(".-")
+        return array
+    else:
+        for i in range(len(array)):
+            array[i] = str(array[i]).strip(".-")
+            for j in range(len(array)):
+                if re.findall(str(array[i]), str(array[j])) or re.findall(str(array[j]), str(array[i])):
+                    if len(str(array[i])) > len(str(array[j])):
+                        array[i] = array[j]
+                    else:
+                        array[j] = array[i]
+        return array
 
 # write to file function
 def scriereFisier(array, file):
@@ -54,25 +70,25 @@ def procesareNrTel(array):
     if isinstance(array, str) or isinstance(array, int):
         array = str(array)
         array = array.strip()
-        array = array.strip("\/ ")
+        array = array.strip("\/ -.")
         array = array.replace(" ", "")
-        if len(array) <= 10 or len(array) >= 16:
+        if len(array) < 10 or len(array) >= 16:
             array = "0"
     else:
         for i in range(len(array)):
             array[i] = str(array[i])
             array[i] = array[i].strip()
-            array[i] = array[i].strip("\/ ")
+            array[i] = array[i].strip("\/ -.")
             array[i] = array[i].replace(" ", "")
-            if len(array[i]) <= 10 or len(array[i]) >= 16:
+            if len(array[i]) < 10 or len(array[i]) >= 16:
                 array[i] = "0"
 
 # function that returns a page that could be the contact page of the website
 def parcurgerePagini(pagini):
     for i in range(len(pagini)):
         # extracts an object that has a valid link withn it
-        pagini[i] = re.search(r"[(http(s)?):\/\/(www\.)?a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)", str(pagini[i]))
-
+        pagini[i] = re.search(r"[(http(s)?):\/\/(www\.)-?a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)", str(pagini[i]))
+        # print(pagini[i])
         # only the link remains
         pagini[i] = pagini[i].group(0)
 
@@ -158,6 +174,9 @@ for i in range(len(data)):
             email = re.findall(r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)", str(soup))
             # regex phone number basic
             telefon = re.findall(r"[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*", str(soup.get_text()))
+            # notice how for the email we search in the html code while for the phone number we search in the text of the site
+            # that is because phone numbers are much harder to extract from random numbers if read from html code
+            # while emails are much easier to extract from html code because they dont get concatenated with text from the site
 
             # trying to take the email and the phone number from the contact page aswell if found
             if pagina != 0:
@@ -207,7 +226,7 @@ for i in range(len(data)):
                 else:
                     totalEmail = email + emailContact
 
-            # in the dataAll file it writes all found data (without further processing), helpful for debugging & improving
+            # in the dataUnprocessed file it writes all found data (without further processing), helpful for debugging & improving
             print("##########", file=fisierDateAll)
             print("(" + str(i) + ") " + data.iloc[i, 0], file=fisierDateAll)
             print("##########", file=fisierDateAll)
@@ -219,6 +238,7 @@ for i in range(len(data)):
             procesareEmail(totalEmail)
 
             # removing duplicates
+            totalEmail = removeEmailDuplicates(totalEmail)
             totalEmail = list(dict.fromkeys(totalEmail))
             totalTelefon = list(dict.fromkeys(totalTelefon))
 
